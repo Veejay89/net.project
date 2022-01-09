@@ -226,14 +226,14 @@ if __name__ == '__main__':
   """
   # Define base send_mail_smtp attributes
   smtp_gmail = {
-    'fromAddr': 'atlantisclub18@gmail.com',
-    'toAddr': 'atlantisclub18@gmail.com',
+    'fromAddr': '',
+    'toAddr': '',
     'smtpServer': 'smtp.gmail.com',
     #'smtpPort': 587,
     'subject': 'Test message via Python3',
     'message': '',
     #'username': '',
-    'password': 'ugiqpokzvbswvtgf',
+    'password': '',
     #'tls': True
   }
   
