@@ -1,0 +1,45 @@
+# README FIRST
+# -----
+# Use this sample format to create file with custom attributes
+# This file can be simply converted in dict with function
+# cf.get_settings()
+# -----
+# Every line in this file might be:
+#  Empty (ignored by get_settings function)
+#  Commented by # (ignored by get_settings function)
+#  Name = Value
+# -----
+# Name consist of letters and "_","-" chars
+# Value consist of letters, digits, whitespaces and special chars:
+# "_" , "-" , "." , ":" , "/" , "\" , "@" , "(" , ")", "="
+# Do not use quoras to determine any type of attribute
+# -----
+# Use same Name in two or more lines to define attributes list, f.e.
+# recepients = 1@test.ru
+# recepients = 2@test.ru
+# -----
+# NEVER STORE PASSWORD AS PLAIN-TEXT IN THIS FILE OR ANY OTHER!
+# Use key-based cryptography algoryth defined in cfsec module to generate secret key and provide it to
+# sec_encrypt_password()
+# function to encrypt password. If needed define only encrypted passwords in this file. 
+
+access_code_length = 10
+
+ise_api_pan = undefined
+ise_api_port = 9060
+ise_api_username = undefined
+ise_api_password = undefined
+
+hotspot_portal_name = Test Hotspot Portal
+hotspot_portal_id = 563712
+
+smtp_server = gmail
+smtp_port = 587
+smtp_sender = undefined
+#smtp_user = undefined
+stmp_password = undefined
+smtp_tls = True
+
+mail_subject = Guest hotspot access code update
+
+mail_recepients = undefined

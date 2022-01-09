@@ -1,0 +1,4 @@
+<html>
+	<div>New access code</div>
+	<div style='border: 1px solid #000'>$new_access_code</div>
+</html>

@@ -1,0 +1,8 @@
+# Ignore all cache files
+*.pyc
+
+# Ignore all log files
+*.log
+
+# Ignore environment files
+.env
