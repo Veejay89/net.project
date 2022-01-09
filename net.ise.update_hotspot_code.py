@@ -30,11 +30,13 @@ def setIseApiHeaders(usr,pwd):
   return (header)
 
 
-def abnormal_exit():
-  cf.log_exit('Access code update procedure failed. See logs above to determine the reason',log_path)
+#def abnormal_exit():
+#  cf.log_exit('Access code update procedure failed. See logs above to determine the reason',log_path)
 
 
 def main():
+  # Set abnormal log message (Exit with fail)
+  ewf_log = 'Access code update procedure failed. See logs above to determine the reason'
   # Define default log file path
   log_path = this_path + '/logs/'+ cf.script_name() +'.log'
   # Define param and custom files path
@@ -49,7 +51,8 @@ def main():
     settings = cf.get_settings(file_settings)
     if settings == False:
       cf.log('Cannot open file with mandatory settings: '+file_settings, log_path, 2)
-      abnormal_exit()
+      cf.log_exit(ewf_log, log_path)
+      #abnormal_exit()
     else:
       cf.log('Mandatory settings received from: '+file_settings, log_path, 2)
     
@@ -60,6 +63,7 @@ def main():
     
     dec_smtp_password = sec_decrypt_password(settings['decryption_key'], settings['smtp_password'])
     settings['dec_smtp_password'] = dec_smtp_password
+    # Add exception
     
     if len(sys.argv) >= 3:
       file_email_body = param_path + sys.argv[2]
@@ -69,14 +73,16 @@ def main():
       except IOError as e:
         cf.log('Cannot open file with custom message body template: '+file_email_body, log_path, 2)
         cf.log(str(e), log_path, 3)
-        abnormal_exit()
+        cf.log_exit(ewf_log, log_path)
+        #abnormal_exit()
       
       
     else:
       email_body = False
   else:
     cf.log('Mandatory arguments are not defined in command line', log_path, 1)
-    abnormal_exit()
+    cf.log_exit(ewf_log, log_path)
+    #abnormal_exit()
 
   ise_api_url = 'https://'+settings['ise_api_pan']+':'+settings['ise_api_port']+'/ers/config/hotspotportal/'+settings['hotspot_portal_id']
   headers = setIseApiHeaders(settings['ise_api_username'], settings['ise_api_password'])
@@ -97,10 +103,12 @@ def main():
   # HTTP-request result handler
   if errorCode != 0:
     cf.log(str(errorCode), log_path, 2)
-    abnormal_exit()
+    cf.log_exit(ewf_log, log_path)
+    #abnormal_exit()
   elif response.status_code == 200:
     cf.log('Unable to get current access code information; HTTP response-code: '+str(response.status_code), log_path, 2)
-    abnormal_exit()
+    cf.log_exit(ewf_log, log_path)
+    #abnormal_exit()
   
   
   jsonData = response.json()
@@ -108,7 +116,8 @@ def main():
     old_access_code = jsonData['HotspotPortal']['settings']['aupSettings']['accessCode']
   except:
     cf.log('UAP access code is not defined for current portal. Update is not possible', log_path, 2)
-    abnormal_exit()
+    cf.log_exit(ewf_log, log_path)
+    #abnormal_exit()
   cf.log('Old UAP access code: '+old_access_code, log_path, 2)
   """
  
@@ -134,10 +143,12 @@ def main():
   # HTTP-request result handler
   if errorCode != 0:
     cf.log(str(errorCode), log_path, 2)
-    abnormal_exit()
+    cf.log_exit(ewf_log, log_path)
+    #abnormal_exit()
   elif response.status_code == 200:
     cf.log('Unable to set new access code to current portal; HTTP response-code: '+str(response.status_code), log_path, 2)
-    abnormal_exit()
+    cf.log_exit(ewf_log, log_path)
+    #abnormal_exit()
   """
   
   if email_body != False:
