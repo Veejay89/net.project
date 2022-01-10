@@ -58,6 +58,8 @@ def main():
     
     if 'smtp_user' not in settings:
       settings['smtp_user'] = ''
+    if 'smtp_auth' not in settings:
+      settings['smtp_auth'] = False
     if 'mail_recepients' in settings:
       if isinstance(settings['mail_recepients'], str): settings['mail_recepients'] = [settings['mail_recepients']]
     
@@ -169,7 +171,7 @@ def main():
     
   cf.log('Sending new access code via email', log_path, 1)
   for smtp_recepient in settings['mail_recepients']:
-    smtp_result = cf.send_mail_smtp(fromAddr=settings['smtp_sender'],toAddr=smtp_recepient,smtpServer=settings['smtp_server'],smtpPort = settings['smtp_port'],subject=settings['mail_subject'],message=smtp_body,username=settings['smtp_user'],password=settings['dec_smtp_password'],tls=settings['smtp_tls'])
+    smtp_result = cf.send_mail_smtp(fromAddr=settings['smtp_sender'],toAddr=smtp_recepient,smtpServer=settings['smtp_server'],smtpPort = settings['smtp_port'],subject=settings['mail_subject'],message=smtp_body,username=settings['smtp_user'],password=settings['dec_smtp_password'],tls=settings['smtp_tls'],fAuth=settings['smtp_auth'])
     if smtp_result == 0:
       # Email sent successfully
       cf.log(smtp_recepient+' - [OK]', log_path, 2)
