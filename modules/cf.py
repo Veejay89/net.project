@@ -144,7 +144,10 @@ def is_valid_email(email):
     return False
 
 
-
+# [fAuth] forces setting esmtp_features['auth'] attribute of SMTP connection. Might be useful, f.e. if SMTP server does support the AUTH command even though it doesn't advertise it via EHLO request. Without this attr you'll get [No suitable authentication method found] exception in smtplib.login.
+#    Examples:
+#    fAuth = 'LOGIN'
+#    fAauth = 'PLAIN'
 def send_mail_smtp(fromAddr='',toAddr='',smtpServer='',smtpPort=587,subject='',message='',username='',password='',tls=True,fAuth=False):
   """ Send single message via defined SMTP server.
   Use FOR and IN structure to send more than one message 
