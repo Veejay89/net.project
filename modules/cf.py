@@ -166,6 +166,13 @@ def send_mail_smtp(fromAddr='',toAddr='',smtpServer='',smtpPort=587,subject='',m
     smtpPort = 587
     username = fromAddr # Just a pointer, keep in mind that strings are immunable
     tls = True
+  # Allow to define tls variable as string (bool by default)
+  if isinstance(tls, str):
+    if tls.lower() == 'true':
+      tls = True
+    else:
+      tls = False
+  
   
   # Base check-list of user-defined attributes
   if fromAddr == '' or is_valid_email(fromAddr) == False:
