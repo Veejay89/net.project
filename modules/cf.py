@@ -145,7 +145,7 @@ def is_valid_email(email):
 
 
 
-def send_mail_smtp(fromAddr='',toAddr='',smtpServer='',smtpPort=587,subject='',message='',username='',password='',tls=True):
+def send_mail_smtp(fromAddr='',toAddr='',smtpServer='',smtpPort=587,subject='',message='',username='',password='',tls=True,fAuth=False):
   """ Send single message via defined SMTP server.
   Use FOR and IN structure to send more than one message 
   """
@@ -157,6 +157,7 @@ def send_mail_smtp(fromAddr='',toAddr='',smtpServer='',smtpPort=587,subject='',m
     12: 'smtpServer value is not defined or incorrect',
     14: 'subject text is not defined',
   }
+  supportedAuth = ['LOGIN','PLAIN']
   
   # Autocomplete known attributes:
   # gmail - used as short name for smtpServer
@@ -189,13 +190,23 @@ def send_mail_smtp(fromAddr='',toAddr='',smtpServer='',smtpPort=587,subject='',m
     # Form Email message in smtplib format w/ Content-Type if nesessary
     # message = 'Subject: {}\n\n{}'.format(subject, message)
     message = 'Subject: {}\nFrom: {}\nTo: {}\n{}\n{}'.format(subject, fromAddr, toAddr, content, message)
-    
-    # TLS Algorythm (f.e. used by GMail)
+
     if tls == True:
+      # TLS Algorythm (f.e. used by GMail)
       conn = smtplib.SMTP(smtpServer,smtpPort)
       conn.ehlo()
       conn.starttls()
       conn.ehlo()
+      if fAuth in supportedAuth:
+        conn.esmtp_features['auth'] = fAuth
+      conn.login(username, password)
+      conn.sendmail(fromAddr, toAddr, message)
+      conn.quit()
+    else:
+      conn = smtplib.SMTP(smtpServer,smtpPort)
+      conn.ehlo()
+      if fAuth in supportedAuth:
+        conn.esmtp_features['auth'] = fAuth
       conn.login(username, password)
       conn.sendmail(fromAddr, toAddr, message)
       conn.quit()
