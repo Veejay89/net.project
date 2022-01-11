@@ -63,6 +63,10 @@ def main():
     settings['dec_smtp_password'] = dec_smtp_password
     # Add exception
     
+    dec_ise_api_password = sec_decrypt_password(settings['decryption_key'], settings['ise_api_password'])
+    settings['ise_api_password'] = dec_ise_api_password
+    # Add exception
+    
     if len(sys.argv) >= 3:
       file_email_body = param_path + sys.argv[2]
       try:
