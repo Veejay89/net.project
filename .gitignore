@@ -6,3 +6,9 @@
 
 # Ignore environment files
 .env
+
+# Ignore cofiguration files
+.txt
+
+# Add configuration samples
+!_*sample*.txt
