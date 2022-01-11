@@ -8,7 +8,7 @@
 .env
 
 # Ignore cofiguration files
-.txt
+*.txt
 
 # Add configuration samples
 !_*sample*.txt
