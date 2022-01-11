@@ -30,9 +30,6 @@ def setIseApiHeaders(usr,pwd):
   return (header)
 
 
-#def abnormal_exit():
-#  cf.log_exit('Access code update procedure failed. See logs above to determine the reason',log_path)
-
 
 def main():
   # Set abnormal log message (Exit with fail)
@@ -52,7 +49,6 @@ def main():
     if settings == False:
       cf.log('Cannot open file with mandatory settings: '+file_settings, log_path, 2)
       cf.log_exit(ewf_log, log_path)
-      #abnormal_exit()
     else:
       cf.log('Mandatory settings received from: '+file_settings, log_path, 2)
     
@@ -76,7 +72,6 @@ def main():
         cf.log('Cannot open file with custom message body template: '+file_email_body, log_path, 2)
         cf.log(str(e), log_path, 3)
         cf.log_exit(ewf_log, log_path)
-        #abnormal_exit()
       
       
     else:
@@ -84,16 +79,45 @@ def main():
   else:
     cf.log('Mandatory arguments are not defined in command line', log_path, 1)
     cf.log_exit(ewf_log, log_path)
-    #abnormal_exit()
 
-  ise_api_url = 'https://'+settings['ise_api_pan']+':'+settings['ise_api_port']+'/ers/config/hotspotportal/'+settings['hotspot_portal_id']
+  #ise_api_url = 'https://'+settings['ise_api_pan']+':'+settings['ise_api_port']+'/ers/config/hotspotportal/'+settings['hotspot_portal_id']
   headers = setIseApiHeaders(settings['ise_api_username'], settings['ise_api_password'])
   
   
   cf.log('Defined settings:', log_path, 1)
   cf.log('ISE HotSpot Portal Name: '+settings['hotspot_portal_name'], log_path, 2)
   cf.log('ISE HotSpot Portal ID: '+settings['hotspot_portal_id'], log_path, 2)
-  cf.log('ISE PAN API url: '+ise_api_url, log_path, 2)
+  #cf.log('ISE PAN API url: '+ise_api_url, log_path, 2)
+  
+  # Try to get defined Portal ID configuration URL (with Portal ID)
+  cf.log('Reading HotSpot portal ID', log_path, 1)
+  errorCode = 0
+  ise_api_url = 'https://{}:{}/ers/config/portal'.format(settings['ise_api_pan'],settings['ise_api_port'])
+  try:
+    response = requests.put(ise_api_url, headers=headers, verify=False)
+  except Exception as e:
+    errorCode = e
+  # HTTP-request result handler
+  if errorCode != 0:
+    cf.log(str(errorCode), log_path, 2)
+    cf.log_exit(ewf_log, log_path)
+  elif response.status_code != 200:
+    cf.log('Unable to get hotspot portal id. ERS API HTTP response-code: '+str(response.status_code), log_path, 2)
+    cf.log_exit(ewf_log, log_path)
+  
+  jsonData = response.json()
+  hotspot_portal_id = ''
+  hotspot_portal_url = ''
+  try:
+    ise_resources = jsonData['resources']
+    for res in ise_resources:
+      if res['name'] == settings['hotspot_portal_name']:
+        hotspot_portal_id = res['id']
+        hotspot_portal_url = res['link']['href']
+  except:
+    cf.log('Unable to get hotspot portal id. Update is not possible', log_path, 2)
+    cf.log_exit(ewf_log, log_path)
+  cf.log('HotSpot Portal ID: '+hotspot_portal_id, log_path, 2)
   
   """
   cf.log('Reading old access code', log_path, 1)
@@ -106,11 +130,9 @@ def main():
   if errorCode != 0:
     cf.log(str(errorCode), log_path, 2)
     cf.log_exit(ewf_log, log_path)
-    #abnormal_exit()
-  elif response.status_code == 200:
+  elif response.status_code != 200:
     cf.log('Unable to get current access code information; HTTP response-code: '+str(response.status_code), log_path, 2)
     cf.log_exit(ewf_log, log_path)
-    #abnormal_exit()
   
   
   jsonData = response.json()
@@ -119,7 +141,6 @@ def main():
   except:
     cf.log('UAP access code is not defined for current portal. Update is not possible', log_path, 2)
     cf.log_exit(ewf_log, log_path)
-    #abnormal_exit()
   cf.log('Old UAP access code: '+old_access_code, log_path, 2)
   """
  
@@ -146,11 +167,9 @@ def main():
   if errorCode != 0:
     cf.log(str(errorCode), log_path, 2)
     cf.log_exit(ewf_log, log_path)
-    #abnormal_exit()
-  elif response.status_code == 200:
+  elif response.status_code != 200:
     cf.log('Unable to set new access code to current portal; HTTP response-code: '+str(response.status_code), log_path, 2)
     cf.log_exit(ewf_log, log_path)
-    #abnormal_exit()
   """
   
   if email_body != False:
