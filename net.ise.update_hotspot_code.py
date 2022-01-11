@@ -98,7 +98,7 @@ def main():
   errorCode = 0
   ise_api_url = 'https://{}:{}/ers/config/portal'.format(settings['ise_api_pan'],settings['ise_api_port'])
   try:
-    response = requests.put(ise_api_url, headers=headers, verify=False)
+    response = requests.get(ise_api_url, headers=headers, verify=False)
   except Exception as e:
     errorCode = e
   # HTTP-request result handler
@@ -111,23 +111,30 @@ def main():
   
   jsonData = response.json()
   hotspot_portal_id = ''
-  hotspot_portal_url = ''
   try:
-    ise_resources = jsonData['resources']
+    ise_resources = jsonData['SearchResult']['resources']
     for res in ise_resources:
       if res['name'] == settings['hotspot_portal_name']:
         hotspot_portal_id = res['id']
-        hotspot_portal_url = res['link']['href']
   except:
     cf.log('Unable to get hotspot portal id. Update is not possible', log_path, 2)
     cf.log_exit(ewf_log, log_path)
-  cf.log('HotSpot Portal ID: '+hotspot_portal_id, log_path, 2)
   
-  """
+  if hotspot_portal_id != '':
+    cf.log('HotSpot Portal ID: '+hotspot_portal_id, log_path, 2)
+  else:
+    cf.log('Unable to find hotspot portal id determined in settings. Update is not possible', log_path, 2)
+    cf.log_exit(ewf_log, log_path)
+  
+  
+  ise_api_url = 'https://{}:{}/ers/config/hotspotportal/{}'.format(settings['ise_api_pan'],settings['ise_api_port'],hotspot_portal_id)
+  
+  
+  # Try to get current access code from Portal
   cf.log('Reading old access code', log_path, 1)
   errorCode = 0
   try:
-    response = requests.put(ise_api_url, headers=headers, verify=False)
+    response = requests.get(ise_api_url, headers=headers, verify=False)
   except Exception as e:
     errorCode = e
   # HTTP-request result handler
@@ -146,18 +153,23 @@ def main():
     cf.log('UAP access code is not defined for current portal. Update is not possible', log_path, 2)
     cf.log_exit(ewf_log, log_path)
   cf.log('Old UAP access code: '+old_access_code, log_path, 2)
-  """
+
  
   cf.log('Generating new access code', log_path, 1)
   new_access_code = cf.generate_password(int(settings['access_code_length']))
   cf.log('New UAP access code: '+new_access_code, log_path, 2)
 
-  """
+  # Try to set new access code to Portal
   cf.log('Sending update API request', log_path, 1)
-  data = { 'HotspotPortal':
-    { 'settings':
+  data = {
+    "HotspotPortal":
+    { "id": hotspot_portal_id,
+      "name": settings['hotspot_portal_name'],
+      "settings":
       { "aupSettings":
-        { "accessCode": new_access_code }
+        { "accessCode": new_access_code,
+          "requireAccessCode": "true"
+        }
       }
     }
   }
@@ -174,7 +186,7 @@ def main():
   elif response.status_code != 200:
     cf.log('Unable to set new access code to current portal; HTTP response-code: '+str(response.status_code), log_path, 2)
     cf.log_exit(ewf_log, log_path)
-  """
+
   
   if email_body != False:
     smtp_body = email_body.replace('$new_access_code', new_access_code)
