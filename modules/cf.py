@@ -16,6 +16,8 @@ import smtplib
 import re
 # https://docs.python-requests.org/en/latest/
 import requests
+
+import json
 # datetime object containing current date and time
 from datetime import datetime
 
@@ -23,6 +25,14 @@ from datetime import datetime
 
 # Global module variables
 _cf_log_default_path = 'cf_log.txt'
+# Internal support classes
+class Req:
+  """docstring"""
+
+  def __init__(self):
+    self.error = False
+    self.status_code = False
+    self.data = ''
 
 
 def script_name():
@@ -69,6 +79,45 @@ def log_exit(msg='',file=''):
   if msg != '':
     log(msg,file)
   sys.exit()
+
+
+
+def rget(url, headers, sslverify=False, data=False):
+  result = Req()
+  
+  try:
+    if not data:
+      response = requests.get(url, headers=headers, verify=sslverify)
+    else:
+      response = requests.get(url, data=json.dumps(data), headers=headers, verify=sslverify)
+  except Exception as e:
+    result.error = str(e)
+    return result
+  result.status_code = response.status_code
+  if response.status_code != 200:
+    result.error = 'HTTP response code: {}'.format(response.status_code)
+    return result
+    
+  result.data = response.json()
+  return result
+
+
+
+def rput(url, data, headers, sslverify=False):
+  result = Req()
+  
+  try:
+    response = requests.put(url, data=json.dumps(data), headers=headers, verify=sslverify)
+  except Exception as e:
+    result.error = str(e)
+    return result
+  result.status_code = response.status_code
+  if response.status_code != 200:
+    result.error = 'HTTP response code: {}'.format(response.status_code)
+    return result
+    
+  result.data = response.json()
+  return result
 
 
 
