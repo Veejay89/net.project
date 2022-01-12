@@ -21,6 +21,10 @@ from datetime import datetime
 
 
 
+# Global module variables
+_cf_log_default_path = 'cf_log.txt'
+
+
 def script_name():
   path = sys.argv[0]
   while True:
@@ -37,7 +41,14 @@ def script_name():
 
 
 
-def log(msg,file='cf_log.txt',lvl=0):
+def log_define_file(file):
+  global _cf_log_default_path
+  _cf_log_default_path = file
+
+
+def log(msg,file='',lvl=0):
+  if file == '':
+    file = _cf_log_default_path
   # Get log message timestamp, format: dd/mm/YY H:M:S
   now = datetime.now()
   msg_timestamp = now.strftime("%d/%m/%Y %H:%M:%S")
@@ -52,7 +63,9 @@ def log(msg,file='cf_log.txt',lvl=0):
   f.close()
 
 
-def log_exit(msg='',file='cf_log.txt'):
+def log_exit(msg='',file=''):
+  if file == '':
+    file = _cf_log_default_path
   if msg != '':
     log(msg,file)
   sys.exit()
