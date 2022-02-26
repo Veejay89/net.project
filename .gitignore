@@ -12,3 +12,4 @@
 
 # Add configuration samples
 !_*sample*.txt
+!*test*.txt
