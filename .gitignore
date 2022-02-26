@@ -7,9 +7,8 @@
 # Ignore environment files
 .env
 
-# Ignore cofiguration files
+# Ignore cofiguration and test scenario files
 *.txt
 
 # Add configuration samples
 !_*sample*.txt
-!*test*.txt
