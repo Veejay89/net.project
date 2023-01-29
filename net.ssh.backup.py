@@ -154,12 +154,12 @@ def main_init():
   log.record.prefix()
   log.record.color('[INFO]', cf.rgb.DodgerBlue)
   log.record.color('[OK]', cf.rgb.green)
-  log.display.color('[ADD]', cf.rgb.green)
-  log.display.color('[DONE]', cf.rgb.green)
+  log.record.color('[ADD]', cf.rgb.green)
+  log.record.color('[DONE]', cf.rgb.green)
   log.record.color('[MIS]', cf.rgb.orange)
-  log.display.color('[WARN]', cf.rgb.orange)
-  log.display.color('[FAIL]', cf.rgb.Tomato)
-  log.display.color('[ERROR]', cf.rgb.Tomato)
+  log.record.color('[WARN]', cf.rgb.orange)
+  log.record.color('[FAIL]', cf.rgb.Tomato)
+  log.record.color('[ERROR]', cf.rgb.Tomato)
   
   # Include timestamp in first log record
   log.record.timestamp()
