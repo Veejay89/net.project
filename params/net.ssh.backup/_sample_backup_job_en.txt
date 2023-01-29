@@ -1,0 +1,144 @@
+# -----
+# IMPORTANT
+# -----
+
+# 1. NEVER, under any circumstances, save plaintext passwords for devices in productive environment! Neither this file and in any other.
+#    The password in this file MUST be encrypted using the Fernet algorithm. See cfsec module description for more information.
+#    The password specified in plaintext will NOT be used and will result error during the backup job.
+# 2. Even using encrypted passwords does not guarantee their safety. This option should be used only with the assessment and acceptance of possible risks of compromising credentials.
+#    Whenever possible, always use the minimum necessary access rights and limit the scope of use for the selected account. For example, using RADIUS server.
+# 3. Use only Latin characters (en) to define parameters in this file.
+
+# -----
+# GLOBAL PARAMETERS
+# -----
+
+# :: backup_path [required, single]
+# Defines the absolute path (/*) to the default directory for storing backups.
+# Backup path can be redefined for every single device below.
+# Examples
+# backup_path = /bkp
+# backup_path = /bkp/datacenter
+
+backup_path = /bkp
+
+# :: default_username [optional, single]
+# Defines the username that will be used to connect to network devices by default.
+# Note, this parameter will be completely ignored if:
+# - the script running with the --credentials key;
+# - the connection credentials are overridden for the specific device below.
+# Examples
+# default_username = admin
+
+default_username = admin
+
+# :: default_password [optional, single]
+# Defines the password for the above account (default_username).
+# Note that this parameter will be completely ignored if:
+# - the script running with the --credentials key;
+# - the connection credentials are overridden for the specific device below.
+# The password MUST be encrypted using the Fernet algorithm. See cfsec module description for more information.
+# NEVER, under any circumstances, save plaintext passwords for devices in productive environment!
+# Examples
+# default_password = *****
+
+default_password = *****
+
+# :: decryption_key [optional*, single]
+# Required parameter if one or more passwords are declared among the settings. It may not be used only if the script is run with the --credentials key.
+# Defines the secret Fernet key. Generated using the cfsec module functionality. See the cfsec module description for more information.
+# Examples
+# decryption_key = org_secret_key
+
+decryption_key = org_secret_key
+
+
+# -----
+# INTEGRATION WITH ZABBIX API
+# -----
+
+# :: zabbix_server [mandatory*, single]
+# Defines Zabbix server's address as an IP address or FQDN (not a URL).
+# Examples
+# zabbix_server = zabbix.yourdomain.ru
+# zabbix_server = 192.168.1.1
+
+zabbix_server = zabbix.yourdomain.ru
+
+# :: zabbix_username [mandatory*, single]
+# Defines the username that will be used to connect to the Zabbix API.
+# This parameter will be ignored if the script running with the --credentials key.
+# Examples
+# zabbix_username = zabbix_api_user
+
+zabbix_username = zabbix_api_user
+
+# :: zabbix_password [mandatory*, single]
+# Defines the password for the above account (zabbix_username).
+# This parameter will be ignored if the script running with the --credentials key.
+# The password MUST be encrypted using the Fernet algorithm. See cfsec module description for more information.
+# NEVER, under any circumstances, save plaintext passwords for devices in productive environment!
+# Examples
+# zabbix_password = *****
+
+zabbix_password = *****
+
+# :: zabbix_group [mandatory*, plural]
+# Defines groups of Zabbix objects that combine network devices to be backed up.
+# It is allowed to list several groups, each group is specified in a separate line
+# Examples
+# zabbix_group = NET_ORG_L3
+# zabbix_group = NET_ORG_L2
+
+zabbix_group = NET_ORG_L3
+zabbix_group = NET_ORG_L2
+
+
+# -----
+# LIST OF NETWORK DEVICES
+# -----
+
+# :: device [optional, multiple]
+# Adds or overrides one or more network device attributes listed in the same line with the separator ";"
+# name - the name of the device. Defines the folder in the root directory where the backup copy will be placed.
+# ip - the IP address of the device. A unique parameter that defines the connection point to the device.
+# username - the username that will be used to connect to the network device.
+# password - password for the above account (username)
+# path - the absolute path (/*) to the backup directory for a specific device.
+# enable - tbd
+# port - TCP port that is listened to on the SSH connection device.
+# os - ios/nx-os/asa/vyos. When creating a backup, a script suitable for the selected operating system will be used.
+
+# The device definition in this section is performed for two different tasks:
+# 1. Adding a new device to the backup task, in manual mode;
+#2. Redefining default settings for network devices imported from Zabbix groups.
+# This block is optional if data about network devices is planned to be extracted from Zabbix, and the same account (default_username) is used for authentication on them.
+
+# Examples
+
+# device = 192.168.0.1
+# A device available at 192.168.0.1:22 will be added to the backup task. SSH port (TCP/22) is used by default.
+# default_username/default_password will be used for authentication.
+# The backup mechanism will be applied for Cisco IOS systems (by default).
+# If hostname is read from the device configuration, the RC will be placed in the backup_path/hostname/ directory. Otherwise - backup_path/192.168.0.1/
+
+# device = name=ORG-ROUTER;ip=192.168.0.1
+# The difference from the previous scenario is that the hostname of the device is specified manually. The RC will be placed in the backup_path/ORG-ROUTER directory/
+
+# device = name=ORG-ROUTER;ip=192.168.0.1;port=4422
+# The device description specifies the port, the connection to the device will be made at the address 192.168.0.1:4422
+
+# device = name=ORG-IOS-ROUTER;ip=192.168.0.2;os=ios
+# device = name=ORG-VyOS-ROUTER;ip=192.168.0.2;os=vyos
+# device = name=ORG-ASA-FIREWALL;ip=192.168.0.3;os=asa
+# device = name=ORG-DC-SWITCH;ip=192.168.0.3;os=nx-os
+# If the os parameter is explicitly redefined (ios by default), a script suitable for the selected operating system will be used when creating a backup.
+# Supported values: ios/NX-os/asa/vyos
+
+# device = name=ORG-ROUTER;ip=192.168.0.1;username=admin2;password=*****
+# The description defines the credentials for connecting to a specific device (username/password)
+# The password MUST be encrypted using the Fernet algorithm. See cfsec module description for more information.
+# NEVER, under any circumstances, save passwords from a productive environment in the clear!
+
+# device = name=ORG-ROUTER;ip=192.168.0.1;path=/bkp/special_dir
+# The device has a directory for storing backups (/bkp/special_dir). The backup_path parameter will be ignored for a specific device.

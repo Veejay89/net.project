@@ -7,93 +7,176 @@ Module to work with encrypted passwords
 
 
 import sys
-from pathlib import Path
 import os
+import base64
+import psutil
+import re
+from pathlib import Path
 from dotenv import load_dotenv
 from cryptography.fernet import Fernet
+from cryptography.hazmat.primitives import hashes
+from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
+# Import Custom Functions libraries
+from cf import generate_password
 
 
-def sec_encrypt_password(key_name,dec_password):
-  # Get key from local .env file
-  load_dotenv(dotenv_path)
-  key = os.environ.get(key_name)
-  if key == None:
-    return False
-  # Trying to encrypt password with key
-  try:
-    f = Fernet(key)
-    enc_password = f.encrypt(dec_password.encode())
-  except:
-    return False
-  return enc_password.decode('utf-8')
-
-
-def sec_decrypt_password(key_name,enc_password):
-  # Get key from local .env file
-  load_dotenv(dotenv_path)
-  key = os.environ.get(key_name)
-  if key == None:
-    return False
-  # Trying to decrypt password with key
-  try:
-    f = Fernet(key)
-    dec_password = f.decrypt(enc_password.encode())
-  except:
-    return False
-  return dec_password.decode('utf-8')
-
-
-def main():
-  print("""
-  This module provides options to generate Fernet keys, store it into .env file and use this key to encrypt plain text passwords.
-  Open local .env file to get existed key names and use it in your script.
-  1. Generate new key for python module and put it as .env variable
-  2. Encrypt password for python module to use in script or other insecure areas 
-  3. [decrypt_password] Test: decrypt password using defined key_name
-  4. Quit module
-  """)
-  action = int(input("Select action: "))
+def sec_salt():
+  """
+  Function returns salt value, based on CPU, RAM and disk size of current computing machine. Salt value will be different on one machine or another.
+  """
   
-  if action == 1:
-    key_name = input("Enter user-friendly key name (use to call Fernet key value from script): ")
-    key = Fernet.generate_key()
+  try:
+    # Number of logical CPUs
+    cpu_count = psutil.cpu_count()
+    # Current CPU frequency expressed in Mhz
+    # scpufreq(current=2095.078, min=0.0, max=0.0)
+    scpufreq = psutil.cpu_freq()
+    scpufreq_current = round(scpufreq.current)
+    # Total physical memory (exclusive swap)
+    # svmem(total=3919654912, available=3249811456, percent=17.1, used=267452416, free=118280192, active=324534272, inactive=3286798336, buffers=0, cached=3533922304, shared=164646912, slab=108077056)
+    svmem = psutil.virtual_memory()
+    svmem_total = svmem.total
+    # Total Disk Usage
+    # sdiskusage(total=9648996352, used=7591104512, free=2057891840, percent=78.7)
+    sdiskusage = psutil.disk_usage('/')
+    sdiskusage_total = sdiskusage.total
+  except:
+    return None
+  salt = cpu_count*(scpufreq_current + svmem_total + sdiskusage_total)
+  salt = str(salt) + str(scpufreq_current) + str(svmem_total) + str(sdiskusage_total)
+  salt = bytes(salt, 'utf-8')
+  #salt = salt.to_bytes(8, byteorder='big', signed=True)
+  return salt
 
-    f = open(dotenv_path,'a')
-    print(key_name+'='+key.decode('utf-8'), file=f)
-    # Decode to utf-8 removes b'' chars from written string
+
+class Secret:
+  """docstring"""
+    
+  def key_load(self):
+    self.keys = dict()
+    key_name_re = re.compile(r'^%s(?P<key_name>[A-Za-z0-9-_]+)$' % self.key_name_prepend)
+    
+    for k, v in os.environ.items():
+      key_name = key_name_re.fullmatch(k)
+      if key_name:
+        self.keys[key_name.group('key_name')] = v
+  
+  
+  def __init__(self, path=None, prepend=None):
+    if path:
+      self.dotenv_path = path + "/.env"
+    else:
+      self.dotenv_path = str(sys.path[0]) + "/.env"
+    load_dotenv(self.dotenv_path)
+    
+    if prepend:
+      self.key_name_prepend = prepend
+    else:
+      self.key_name_prepend = "cf_fernet_key_"
+    
+    self.key_load()
+    
+    self.key_salt = sec_salt()
+    
+    self.error = None
+  
+  
+  def key_create(self, key_name=False):
+    self.error = None
+    
+    key_name_re = re.compile(r'^[A-Za-z0-9-_]+$')
+    if not key_name_re.fullmatch(key_name):
+      self.error = "Key name value must contain only symbols and digits"
+      return False
+    
+    if self.keys.get(key_name):
+      self.error = "Fernet key with name '%s' already exists" % key_name
+      return False
+    
+    key = generate_password(strLen=44,isLetters=True,isDigits=True,isPunctuation=True)
+    if key_name:
+      f = open(self.dotenv_path,'a')
+      print(self.key_name_prepend+key_name+'='+key, file=f)
+      f.close()
+    return key
+  
+  
+  def key_remove(self, key_name):
+    self.error = None
+    
+    if self.keys.get(key_name) == None:
+      self.error = "Key with name '%s' is not found in local environment storage" % key_name
+      return False
+    
+    with open(self.dotenv_path) as f:
+      lines = f.readlines()
+    pattern = re.compile(re.escape(self.key_name_prepend+key_name))
+    with open(self.dotenv_path, 'w') as f:
+      for line in lines:
+        result = pattern.search(line)
+        if result is None:
+          f.write(line)
     f.close()
-    
-  if action == 2:
-    key_name = input("Enter key name for encryption: ")
-    dec_password = input("Enter password as plain text: ")
-
-    enc_password = sec_encrypt_password(key_name,dec_password)
-    
-    if dec_password != False:
-      print ('Encrypted password with key ['+key_name+']: '+str(enc_password))
-    else:
-      print ('An error occurred while encrypting password.')
-
-    
-  # Function decrypt_password usage example  
-  if action == 3:
-    key_name = input("Enter key name for decryption [key_name]: ")
-    enc_password = input("Enter encrypted password [enc_password]: ")
+    return True
   
-    dec_password = sec_decrypt_password(key_name,enc_password)
   
-    if dec_password != False:
-      print ('Decrypted password (as plain-text) with key ['+key_name+']: '+str(dec_password))
-    else:
-      print ('An error occurred while decrypting password.')
-
-    if action == 4:
-      sys.exit()
-
-this_path = sys.path[0]
-
-if __name__ == '__main__':
-  dotenv_path = str(Path(sys.path[0]).parent) + "/.env"
-  main()
-else:
-  dotenv_path = str(sys.path[0]) + "/.env"
+  def key_wipe(self):
+    self.error = None
+    try:
+      f = open(self.dotenv_path, 'w')
+      f.close()
+      return True
+    except:
+      self.error = "Undefined error"
+      return False
+  
+  
+  def key_init(self, key_name):
+    # Get passphrase from local .env file
+    passphrase = os.environ.get(self.key_name_prepend+key_name)
+    
+    if passphrase == None or self.key_salt == None:
+      self.fkey = False
+  
+    try:
+      kdf = PBKDF2HMAC(
+        algorithm=hashes.SHA256(),
+        length=32,
+        salt=self.key_salt,
+        iterations=390000,
+      )
+      key = base64.urlsafe_b64encode(kdf.derive(bytes(passphrase, encoding = "utf-8")))
+      f = Fernet(key)
+      self.fkey = f
+    except:
+      self.fkey = False
+   
+  
+  def encrypt(self, dec_password):
+    self.error = None
+    
+    if self.fkey == False:
+      self.error = "Operation aborted. Fernet key is not initialized"
+      return False
+    # Trying to encrypt password with key
+    try:
+      enc_password = self.fkey.encrypt(dec_password.encode())
+    except:
+      self.error = "Undefined error"
+      return False
+    return enc_password.decode('utf-8')
+  
+  
+  def decrypt(self, enc_password):
+    self.error = None
+    
+    if self.fkey == False:
+      self.error = "Operation aborted. Fernet key is not initialized"
+      return False
+    # Trying to decrypt password with key
+    try:
+      dec_password = self.fkey.decrypt(enc_password.encode())
+    except:
+      self.error = "Cannot decrypt password. Make sure that token was encrypted exactly with used Fernet secret key, exactly on this machine"
+      return False
+    return dec_password.decode('utf-8')
