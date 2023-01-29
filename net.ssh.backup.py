@@ -499,7 +499,7 @@ def main_process():
   log.write('Backup job completed: [Total: %i] [Success: %i] [Failed: %i]' % (len(devices), backup_done, backup_fail), display=True)
   log.write('Time ellapsed: %s' % timer.result)
   # Finish script execution and send email notifications (if recepients is defined)
-  finish_script(sucess=True)
+  finish_script(success=True)
   
 
 def main():
