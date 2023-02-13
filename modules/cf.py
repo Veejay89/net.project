@@ -92,6 +92,14 @@ class DiskUsageInfo:
     self.used = self.DiskUsageValue()
 
 
+
+def convert_bytes(size, dec=1):
+  """ Convert bytes to nearest value in KB, MB, GB.. """
+  for x in ['bytes', 'KB', 'MB', 'GB', 'TB']:
+    if size < 1024.0:
+      return "%s %s" % (round(size,dec), x)
+    size /= 1024.0
+
 """
 # IN PROGRESS...
 class html_table:
@@ -785,8 +793,299 @@ class smtp:
 
 
 
-def net_backup_ssh_cisco(name, ip, username, password, path, enable=None, port=22, ostype=None):
+cset = {
+  'ios': {
+    'get_prompt': '^(?P<state>\([A-Za-z]+\)|)(?P<hostname>[A-Za-z0-9-_]+)(?P<mode>\>|#)$',
+    'set_priviledge': 'enable',
+    'set_pager': 'terminal length 0',
+    'get_congig': 'show running-config view full'
+  },
+  'nx-os': {
+    'get_prompt': '^(?P<state>\([A-Za-z]+\)|)(?P<hostname>[A-Za-z0-9-_]+)(?P<mode>\>|#)$',
+    'set_priviledge': 'enable',
+    'set_pager': 'terminal length 0',
+    'get_congig': 'show running-config'
+  },
+  'asa': {
+    'get_prompt': '^(?P<state>\([A-Za-z]+\)|)(?P<hostname>[A-Za-z0-9-_]+)(?P<mode>\>|#)$',
+    'set_priviledge': 'enable',
+    'set_pager': 'terminal pager 0',
+    'get_congig': 'show running-config'
+  },
+  'vyos': {
+    # srv_net_bkp_01@sp-net-rtr-pr01>
+    # srv_net_bkp_01@sp-net-rtr-pr01:~$
+    'get_prompt': '^(?P<username>[A-Za-z0-9-_]+)@(?P<hostname>[A-Za-z0-9-_]+)[>|:](?P<other>.*)$',
+    'set_priviledge': None,
+    'set_pager': 'set terminal length 0',
+    'get_congig': 'show configuration commands'
+  },
+  'gaia': {
+    'get_prompt': '^(?P<hostname>[A-Za-z0-9-_]+)>$',
+    'set_priviledge': None,
+    'set_pager': 'set clienv rows 0',
+    'get_congig': 'show configuration'
+  }
+}
+
+def net_backup_ssh_cset(name, ip, username, password, path, cset, port=22, enable=None):
   """
+  function description
+  """
+  # Pseudo-class for function results
+  class _result:
+    pass
+  result = _result()
+  result.ok = False
+  result.size = 0
+  result.msg = ''
+  
+  if not cset.get('get_prompt') or not cset.get('get_congig'):
+    result.msg = "Uncorrect command set defined for backup function"
+    return result
+  
+  prompt = re.compile(r'%s' % cset['get_prompt'])
+  
+  try:
+    ssh = paramiko.SSHClient()
+    ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+    ssh.connect(ip, port, username, password, look_for_keys=False, timeout=ssh_tcp_timeout, auth_timeout=ssh_auth_timeout)
+    chan = ssh.invoke_shell()
+    time.sleep(2)
+    
+    # Get first console greetings
+    output = chan.recv(999999)
+    # Decode string from byte format
+    output = output.decode("utf-8")
+    # Get hostname
+    output = "".join(output.splitlines()[-1:])
+    # Remove possible whitespaces (in the end of output)
+    output = output.strip()
+    
+    a = prompt.fullmatch(output)
+    if a != None:
+      d = a.groupdict()
+      cli_hostname = d.get('hostname')
+      # Redefine host name from CLI
+      if cli_hostname and name == ip:
+        name = cli_hostname
+        path = path.replace(ip, name)
+      # Get CLI mode sign (priviledged or not). Expected "#" or ">"
+      cli_mode = d.get('mode')
+      if cli_mode:
+        if cli_mode == ">" and cset.get('set_priviledge'):
+          chan.send('%s\n' % cset['set_priviledge'])
+          if enable:
+            chan.send(enable +'\n')
+          else:
+            chan.send('\n')
+        time.sleep(1)
+    else:
+      # If 'mode' can't be parsed, exception will be executed later: 
+      # local variable 'mode' referenced before assignment
+      result.msg = "Cannot parse device prompt with predefined regexp: %s" % output
+      return result
+   
+    if cset.get('set_pager'):
+      chan.send('%s\n' % cset['set_pager'])
+      time.sleep(1)
+    
+    # Clear output before capture running-config
+    output = chan.recv(999999)
+    
+    chan.send('%s\n' % cset['get_congig'])
+    time.sleep(10)
+    output = chan.recv(999999)
+  except paramiko.AuthenticationException:
+    result.msg = "Authentication failed, verify credentials used for connection"
+    return result
+    #return "%s: Authentication failed, verify credentials used for connection" % name
+  except paramiko.SSHException as e:
+    result.msg = "Unable to establish SSH connection: %s" % e
+    return result
+    #return "%s: Unable to establish SSH connection: %s" % (name, e)
+  except paramiko.BadHostKeyException as e:
+    result.msg = "Unable to verify device's host key: %s" % e
+    return result
+    #return "%s: Unable to verify device's host key: %s" % (name, e)
+  except Exception as e:
+    result.msg = e
+    return result
+    #return ("%s: %s" % (name, e))
+  finally:
+    ssh.close()  
+  
+  if not os.path.exists(path):
+    try:
+      os.makedirs(path)
+    except OSError:
+      result.msg = "Error creating backup derectory %s" % path
+      return result
+      #return ("Error creating derectory %s" % path)
+
+  now = datetime.now()
+  timestamp = now.strftime("%d-%b-%y--%H-%M-%S")
+  filename = "%s/%s--%s.txt" % (path, name, timestamp)
+  
+  try:
+    f = open(filename, 'w')
+    f.write(output.decode("utf-8"))
+  except OSError as e:
+    if e.errno == errno.ENOSPC:
+      result.msg = "Can't create backup file. No disk space left"
+      return result
+      #return "%s: Can't create backup file. No disk space left" % name
+    else:
+      result.msg = e
+      return result
+      #return ("%s: %s" % (name, e))
+  except Exception as e:
+    result.msg = e
+    return result
+    #return ("%s: %s" % (name, e))
+  finally:
+    f.close()
+    
+  try:
+    f_size = os.path.getsize(filename)
+    result.size = f_size
+  except OSError as e:
+    result.msg = "Error while checking backup file size: %s" % e
+
+  # If function finished with no exception, set OK flag to True
+  result.ok = True
+  return result
+
+
+
+def net_backup_ssh(name, ip, username, password, path, enable=None, port=22, ostype=None):
+  """
+    Adopted for backup plain-text configuration on ssh-cli network devices. Supports:
+    - Cisco IOS
+    - Cisco NX-OS
+    - Cisco ASDM (ASA)
+    - VyOS (Vyatta OS)
+    - Gaia (Checkpoint Gaia OS)
+    :ostype defines OS type of device:
+        ios (default)
+        nx-os
+        asa
+        vyos
+        gaia
+  """
+  
+  result = net_backup_ssh_cset(name, ip, username, password, path, cset[ostype], port, enable)
+  return result  
+
+
+
+"""
+Fallbacks for Log Class
+"""
+
+_cf_log_default_path = 'cf_log.txt'
+
+def log_define_file(file):
+  global _cf_log_default_path
+  _cf_log_default_path = file
+
+
+def log(msg,file='',lvl=0):
+  if file == '':
+    file = _cf_log_default_path
+  # Get log message timestamp, format: dd/mm/YY H:M:S
+  now = datetime.now()
+  msg_timestamp = now.strftime("%d/%m/%Y %H:%M:%S")
+  # Append log level prefix
+  i = 0
+  while i < lvl:
+    msg = '-' + msg
+    i += 1
+  # Insert new record in log file
+  f = open(file, 'a') # append
+  print(msg_timestamp+': '+msg, file=f)
+  f.close()
+
+
+def log_exit(msg='',file=''):
+  if file == '':
+    file = _cf_log_default_path
+  if msg != '':
+    log(msg,file)
+  sys.exit()
+
+
+def is_valid_ip(ip):
+  """
+  Function returns 'True' if addr is valid IPv4 address or 'False' - if not
+  """
+  # Compile a regular expression pattern into a regular expression object
+  template_ip = re.compile(r'^((25[0-5]|(2[0-4]|1\d|[1-9]|)\d)\.?\b){4}$')
+  # Compare ip string with pattern
+  if re.fullmatch(template_ip, ip):
+    return True
+  else:
+    return False
+
+
+def is_valid_port(port):
+  """
+  Function returns 'True' if port is network port or 'False' - if not
+  """
+  # Compile a regular expression pattern into a regular expression object
+  template_port = re.compile(r'^([1-9][0-9]{0,3}|[1-5][0-9]{4}|6[0-4][0-9]{3}|65[0-4][0-9]{2}|655[0-2][0-9]|6553[0-5])$')
+  # Compare ip string with pattern
+  if re.fullmatch(template_port, port):
+    return True
+  else:
+    return False
+
+
+def is_valid_fqdn(fqdn, tld=False):
+  """
+  Function returns 'True' if fqdn is valid FQDN or 'False' - if not
+  TLD - top-level-domain flag
+  """
+  # Compile a regular expression pattern into a regular expression object
+  if tld:
+    template_tld_true = re.compile(r'(?=^.{4,253}$)(^((?!-)[a-zA-Z0-9-]{1,63}(?<!-)\.)+[a-zA-Z]{2,63}$)')
+  else:
+    template_tld_false = re.compile(r'(?=^.{1,253}$)(^(((?!-)[a-zA-Z0-9-]{1,63}(?<!-))|((?!-)[a-zA-Z0-9-]{1,63}(?<!-)\.)+[a-zA-Z]{2,63})$)')
+  
+  
+
+def is_valid_email(email):
+  """
+  Function returns 'True' if addr is valid Email address or 'False' - if not
+  """
+  # Compile a regular expression pattern into a regular expression object
+  template_email = re.compile(r'([A-Za-z0-9]+[.-_])*[A-Za-z0-9]+@[A-Za-z0-9-]+(\.[A-Z|a-z]{2,})+')
+  # Compare whole email string with pattern
+  if re.fullmatch(template_email, email):
+    return True
+  else:
+    return False
+
+
+def is_int(x):
+  """
+  
+  """
+  try:
+    result = int(x)
+    return result
+  except Exception as e:
+    return False
+
+
+"""
+Deprecated in 1.0.1. To remove in next versions
+"""
+
+"""
+def net_backup_ssh_cisco(name, ip, username, password, path, enable=None, port=22, ostype=None):
+"""
+"""
     Adopted for backup run-config on ssh-cli network devices. Supports:
     - Cisco IOS
     - Cisco NX-OS
@@ -795,8 +1094,8 @@ def net_backup_ssh_cisco(name, ip, username, password, path, enable=None, port=2
         ios (default)
         nx-os
         asa
-  """
-  
+"""
+"""  
   #re_hostname_t1 = re.compile(r'^(?P<hostname>[A-Za-z0-9-_]+)(?P<mode>\>|#)$')
   # First group <state> in RegEx added to except '(Restricted)' keyword in CLI, f.e.
   # (Restricted)RTR-DC-ISRv-01
@@ -918,13 +1217,15 @@ def net_backup_ssh_cisco(name, ip, username, password, path, enable=None, port=2
     return "%s: Device in restricted mode. A partial backup was made" % (name)
   
   return
+"""
 
-
+"""
 def net_backup_ssh_vyos(name, ip, username, password, path, port=22):
-  """
+"""
+"""
     Adopted for backup configuration on ssh-cli VyOS (Vyatta OS) devices.
-  """
-  
+"""
+"""  
   re_hostname_t1 = re.compile(r'^(?P<username>[A-Za-z0-9-_]+)@(?P<hostname>[A-Za-z0-9-_]+):(?P<other>.*)$')
   
   try:
@@ -998,14 +1299,15 @@ def net_backup_ssh_vyos(name, ip, username, password, path, port=22):
     f.close()
   
   return
+"""
 
-
-
+"""
 def net_backup_ssh_gaia(name, ip, username, password, path, port=22):
-  """
+"""
+"""
     Adopted for backup configuration on ssh-cli (clish) Gaia OS devices.
-  """
-  
+"""
+"""  
   re_hostname_t1 = re.compile(r'^(?P<hostname>[A-Za-z0-9-_]+)>$')
   
   try:
@@ -1076,11 +1378,12 @@ def net_backup_ssh_gaia(name, ip, username, password, path, port=22):
     f.close()
   
   return
+"""
 
-
-
+"""
 def net_backup_ssh(name, ip, username, password, path, enable=None, port=22, ostype=None):
-  """
+"""
+"""
     Adopted for backup plain-text configuration on ssh-cli network devices. Supports:
     - Cisco IOS
     - Cisco NX-OS
@@ -1093,8 +1396,8 @@ def net_backup_ssh(name, ip, username, password, path, enable=None, port=22, ost
         asa
         vyos
         gaia
-  """
-  
+"""
+""" 
   # In 3.10 introduced match case statement, if/case used for 3.9 or lower
   if ostype == 'vyos':
     return net_backup_ssh_vyos(name, ip, username, password, path, port)
@@ -1103,106 +1406,7 @@ def net_backup_ssh(name, ip, username, password, path, enable=None, port=22, ost
   else:
   # By default Cisco, (IOS)
     return net_backup_ssh_cisco(name, ip, username, password, path, enable, port, ostype)
-
-
 """
-Fallbacks for Log Class
-"""
-
-_cf_log_default_path = 'cf_log.txt'
-
-def log_define_file(file):
-  global _cf_log_default_path
-  _cf_log_default_path = file
-
-
-def log(msg,file='',lvl=0):
-  if file == '':
-    file = _cf_log_default_path
-  # Get log message timestamp, format: dd/mm/YY H:M:S
-  now = datetime.now()
-  msg_timestamp = now.strftime("%d/%m/%Y %H:%M:%S")
-  # Append log level prefix
-  i = 0
-  while i < lvl:
-    msg = '-' + msg
-    i += 1
-  # Insert new record in log file
-  f = open(file, 'a') # append
-  print(msg_timestamp+': '+msg, file=f)
-  f.close()
-
-
-def log_exit(msg='',file=''):
-  if file == '':
-    file = _cf_log_default_path
-  if msg != '':
-    log(msg,file)
-  sys.exit()
-
-
-def is_valid_ip(ip):
-  """
-  Function returns 'True' if addr is valid IPv4 address or 'False' - if not
-  """
-  # Compile a regular expression pattern into a regular expression object
-  template_ip = re.compile(r'^((25[0-5]|(2[0-4]|1\d|[1-9]|)\d)\.?\b){4}$')
-  # Compare ip string with pattern
-  if re.fullmatch(template_ip, ip):
-    return True
-  else:
-    return False
-
-
-def is_valid_port(port):
-  """
-  Function returns 'True' if port is network port or 'False' - if not
-  """
-  # Compile a regular expression pattern into a regular expression object
-  template_port = re.compile(r'^([1-9][0-9]{0,3}|[1-5][0-9]{4}|6[0-4][0-9]{3}|65[0-4][0-9]{2}|655[0-2][0-9]|6553[0-5])$')
-  # Compare ip string with pattern
-  if re.fullmatch(template_port, port):
-    return True
-  else:
-    return False
-
-
-def is_valid_fqdn(fqdn, tld=False):
-  """
-  Function returns 'True' if fqdn is valid FQDN or 'False' - if not
-  TLD - top-level-domain flag
-  """
-  # Compile a regular expression pattern into a regular expression object
-  if tld:
-    template_tld_true = re.compile(r'(?=^.{4,253}$)(^((?!-)[a-zA-Z0-9-]{1,63}(?<!-)\.)+[a-zA-Z]{2,63}$)')
-  else:
-    template_tld_false = re.compile(r'(?=^.{1,253}$)(^(((?!-)[a-zA-Z0-9-]{1,63}(?<!-))|((?!-)[a-zA-Z0-9-]{1,63}(?<!-)\.)+[a-zA-Z]{2,63})$)')
-  
-  
-
-def is_valid_email(email):
-  """
-  Function returns 'True' if addr is valid Email address or 'False' - if not
-  """
-  # Compile a regular expression pattern into a regular expression object
-  template_email = re.compile(r'([A-Za-z0-9]+[.-_])*[A-Za-z0-9]+@[A-Za-z0-9-]+(\.[A-Z|a-z]{2,})+')
-  # Compare whole email string with pattern
-  if re.fullmatch(template_email, email):
-    return True
-  else:
-    return False
-
-
-def is_int(x):
-  """
-  
-  """
-  try:
-    result = int(x)
-    return result
-  except Exception as e:
-    return False
-
 
 """
 Presented functions usage examples and test output

@@ -463,6 +463,8 @@ def ssh_backup_flow(attr):
       'os': ios/nx-os/asa/vyos
     }
   """
+  # 12.02.23
+  """
   result = cf.net_backup_ssh(attr['name'], attr['ip'], attr['username'], attr['password'], attr['path'], attr['enable'], attr['port'], attr['os'])
   # result = None: means that backup successfully done
   if result:
@@ -471,6 +473,20 @@ def ssh_backup_flow(attr):
   else:
     result = '[DONE] %s: configuration backup successfully done' % attr['name']
     return True, result
+  """
+  result = cf.net_backup_ssh(attr['name'], attr['ip'], attr['username'], attr['password'], attr['path'], attr['enable'], attr['port'], attr['os'])
+  if result.ok:
+    if result.size < 512:
+      result.ok = False
+      msg = '[FAIL] %s: Backup file size is less then 512 Bytes' % attr['name']
+    elif result.msg:
+      msg = '[DONE] %s: %s' % (attr['name'], result.msg)
+    else:
+      msg = '[DONE] %s: conf backup successfully done. Size: %s Bytes' % (attr['name'], cf.convert_bytes(result.size))
+  else:
+    msg = '[FAIL] %s: %s' % (attr['name'], result.msg)
+  
+  return result.ok, msg
 
 
 def main_process():
