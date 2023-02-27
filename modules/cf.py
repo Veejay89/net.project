@@ -821,7 +821,12 @@ cset = {
     'get_congig': 'show configuration commands'
   },
   'gaia': {
-    'get_prompt': '^(?P<hostname>[A-Za-z0-9-_]+)>$',
+    #'get_prompt': '^(?P<hostname>[A-Za-z0-9-_]+)>$',
+    # sp-net-fwv-pr01:TACP-0>
+    # sp-net-mcv-pr02:TACP-0sp-net-mcv-pr02:TACP-0>
+    # FW-DC-08G-CP5600-2>
+    # sc-net-nfw-pr01:TACP-0:mplane>
+    'get_prompt': '^((?P<hostname>[A-Za-z0-9-_]+)(:TACP-0|)(:mplane|)){1,2}>$',
     'set_priviledge': None,
     'set_pager': 'set clienv rows 0',
     'get_congig': 'show configuration'

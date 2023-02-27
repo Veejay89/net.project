@@ -1,8 +1,14 @@
-## [1.0.2] - Planned
+## [1.0.3] - Planned
 
 ### script net.ssh.backup.py
 - backup Eltex MES device option
 - (Restricted) marker for Cisco IOS-devices
+
+
+## [1.0.2]
+
+### module cf.py
+- Command set (cset) for remote backup updated. Add different prompts for GaiaOS in regex
 
 
 ## [1.0.1]
