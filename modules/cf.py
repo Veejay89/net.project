@@ -43,7 +43,13 @@ net_supported_software = {
     'asdm': 'asa',
     'adaptive security appliance': 'asa',
     'vyos': 'vyos',
-    'gaia': 'gaia'
+    'gaia': 'gaia',
+    # 06.03.23 Add Cisco WLC support
+    'wlc': 'wlc',
+    # 28.03.23 Add Eltex MES support
+    'eltex': 'eltex',
+    # 08.03.23 Add Eltex MES support from Zabbix Field
+    'eltex mes': 'eltex'
 }
 
 
@@ -792,64 +798,97 @@ class smtp:
       return True
 
 
-
+ # cset (Command SET), prompt template and get config command is necessary parameters
 cset = {
   'ios': {
-    'get_prompt': '^(?P<state>\([A-Za-z]+\)|)(?P<hostname>[A-Za-z0-9-_]+)(?P<mode>\>|#)$',
+    #'get_prompt': '^(?P<state>\([A-Za-z]+\)|)(?P<hostname>[A-Za-z0-9-_]+)(?P<mode>\>|#)$',
+    'get_prompt': '(?P<state>\([A-Za-z]+\)|)(?P<hostname>[A-Za-z0-9-_]+)(?P<mode>\>|#)',
     'set_priviledge': 'enable',
-    'set_pager': 'terminal length 0',
+    #'set_pager': 'terminal length 0',
     'get_congig': 'show running-config view full'
   },
   'nx-os': {
-    'get_prompt': '^(?P<state>\([A-Za-z]+\)|)(?P<hostname>[A-Za-z0-9-_]+)(?P<mode>\>|#)$',
+    #'get_prompt': '^(?P<state>\([A-Za-z]+\)|)(?P<hostname>[A-Za-z0-9-_]+)(?P<mode>\>|#)$',
+    'get_prompt': '(?P<state>\([A-Za-z]+\)|)(?P<hostname>[A-Za-z0-9-_]+)(?P<mode>\>|#)',
     'set_priviledge': 'enable',
-    'set_pager': 'terminal length 0',
+    #'set_pager': 'terminal length 0',
     'get_congig': 'show running-config'
   },
   'asa': {
-    'get_prompt': '^(?P<state>\([A-Za-z]+\)|)(?P<hostname>[A-Za-z0-9-_]+)(?P<mode>\>|#)$',
+    #'get_prompt': '^(?P<state>\([A-Za-z]+\)|)(?P<hostname>[A-Za-z0-9-_]+)(?P<mode>\>|#)$',
+    'get_prompt': '(?P<state>\([A-Za-z]+\)|)(?P<hostname>[A-Za-z0-9-_]+)(?P<mode>\>|#)',
     'set_priviledge': 'enable',
     'set_pager': 'terminal pager 0',
     'get_congig': 'show running-config'
   },
   'vyos': {
-    # srv_net_bkp_01@sp-net-rtr-pr01>
-    # srv_net_bkp_01@sp-net-rtr-pr01:~$
-    'get_prompt': '^(?P<username>[A-Za-z0-9-_]+)@(?P<hostname>[A-Za-z0-9-_]+)[>|:](?P<other>.*)$',
+    # Prompt example:
+    #   username1_01@sp-net-rtr-pr01>
+    #   username1@sp-net-rtr-pr01:~$
+    #'get_prompt': '^(?P<username>[A-Za-z0-9-_]+)@(?P<hostname>[A-Za-z0-9-_]+)[>|:](?P<other>.*)$',
+    'get_prompt': '(?P<username>[A-Za-z0-9-_]+)@(?P<hostname>[A-Za-z0-9-_]+)[>|:](?P<other>.*)',
     'set_priviledge': None,
     'set_pager': 'set terminal length 0',
     'get_congig': 'show configuration commands'
   },
   'gaia': {
+    # Prompt example:
+    #   dc-fwv-pr01:TACP-0>
+    #   dc-mcv-pr02:TACP-0dc-mcv-pr02:TACP-0>
+    #   DC-CP5600-2>
+    #   dc-nfw-pr01:TACP-0:mplane>
     #'get_prompt': '^(?P<hostname>[A-Za-z0-9-_]+)>$',
-    # sp-net-fwv-pr01:TACP-0>
-    # sp-net-mcv-pr02:TACP-0sp-net-mcv-pr02:TACP-0>
-    # FW-DC-08G-CP5600-2>
-    # sc-net-nfw-pr01:TACP-0:mplane>
-    'get_prompt': '^((?P<hostname>[A-Za-z0-9-_]+)(:TACP-0|)(:mplane|)){1,2}>$',
+    #'get_prompt': '^((?P<hostname>[A-Za-z0-9-_]+)(:TACP-0|)(:mplane|)){1,2}>$',
+    'get_prompt': '((?P<hostname>[A-Za-z0-9-_]+)(:TACP-0|)(:mplane|)){1,2}>',
     'set_priviledge': None,
     'set_pager': 'set clienv rows 0',
     'get_congig': 'show configuration'
+  },
+  # 06.03.23 Add Cisco WLC support
+  'wlc': {
+    # Prompt example:
+    #  (Cisco Controller) >
+    #'get_prompt': '^\((?P<hostname>[A-Za-z0-9-_\s]+)\)\s(?P<mode>\>)$',
+    'get_prompt': '\((?P<hostname>[A-Za-z0-9-_\s]+)\)\s(?P<mode>\>)',
+    'set_priviledge': None,
+    #'set_pager': 'config paging disable',
+    #'get_congig': 'show run-config commands'
+    'get_congig': 'show run-config startup-commands',
+    'get_more': '\r',
+    # in seconds
+    'timer': 300
+  },
+  # 28.03.23 Add Eltex MES support
+  'eltex': {
+    # Prompt example:
+    #   dc-sw-1-mgmt-mes3348#
+    'get_prompt': '(?P<hostname>[A-Za-z0-9-_]+)(?P<mode>\>|#)',
+    'set_priviledge': 'enable',
+    'set_pager': 'terminal datadump',
+    'get_congig': 'show running-config'
   }
 }
 
-def net_backup_ssh_cset(name, ip, username, password, path, cset, port=22, enable=None):
+def net_backup_ssh_cset(name, ip, username, password, path, cset, port=22, enable=None, debug=False):
   """
   function description
   """
-  # Pseudo-class for function results
-  class _result:
+  # Function returns data in pseudo-class format
+  class _pseudo:
     pass
-  result = _result()
-  result.ok = False
-  result.size = 0
-  result.msg = ''
+  result = _pseudo()
+  result.ok = False # True - backup successfully done, False - error occured
+  result.size = 0   # Backup file size in Bytes
+  result.msg = ''   # Text result, i.e. error
   
+  # cset contains command set for device, prompt template and get config command is necessary parameters
   if not cset.get('get_prompt') or not cset.get('get_congig'):
     result.msg = "Uncorrect command set defined for backup function"
     return result
   
-  prompt = re.compile(r'%s' % cset['get_prompt'])
+  prompt_template = re.compile(r'%s' % cset['get_prompt'])
+  
+  output_debug = '' # Debug output (used if "debug" key is defined)
   
   try:
     ssh = paramiko.SSHClient()
@@ -858,7 +897,7 @@ def net_backup_ssh_cset(name, ip, username, password, path, cset, port=22, enabl
     chan = ssh.invoke_shell()
     time.sleep(2)
     
-    # Get first console greetings
+    # Get first console greetings (for prompt calculation)
     output = chan.recv(999999)
     # Decode string from byte format
     output = output.decode("utf-8")
@@ -867,17 +906,22 @@ def net_backup_ssh_cset(name, ip, username, password, path, cset, port=22, enabl
     # Remove possible whitespaces (in the end of output)
     output = output.strip()
     
-    a = prompt.fullmatch(output)
+    a = prompt_template.fullmatch(output)
     if a != None:
       d = a.groupdict()
       cli_hostname = d.get('hostname')
       # Redefine host name from CLI
       if cli_hostname and name == ip:
+        # Remove spaces from device hostname prompt (actual for Cisco WLC)
+        cli_hostname = cli_hostname.replace(" ", "")
         name = cli_hostname
         path = path.replace(ip, name)
-      # Get CLI mode sign (priviledged or not). Expected "#" or ">"
+      #
+      prompt = re.compile(r'%s' % cli_hostname)
+      # Get CLI mode sign (priviledged or not). Expecting "#" or ">"
       cli_mode = d.get('mode')
       if cli_mode:
+        # if cli_mode is not priviledged and cset contains priviledge command, elevate priviledge
         if cli_mode == ">" and cset.get('set_priviledge'):
           chan.send('%s\n' % cset['set_priviledge'])
           if enable:
@@ -890,17 +934,186 @@ def net_backup_ssh_cset(name, ip, username, password, path, cset, port=22, enabl
       # local variable 'mode' referenced before assignment
       result.msg = "Cannot parse device prompt with predefined regexp: %s" % output
       return result
-   
+    
+    # If cset contains "pager"-command, try to execute on device to decrease config dump iterations
     if cset.get('set_pager'):
       chan.send('%s\n' % cset['set_pager'])
       time.sleep(1)
+      #
+      chan.send('\\\n')
+      time.sleep(1)
+      # Clear output before capture running-config
+      output = chan.recv(999999)
     
-    # Clear output before capture running-config
-    output = chan.recv(999999)
     
+    """
     chan.send('%s\n' % cset['get_congig'])
     time.sleep(10)
     output = chan.recv(999999)
+    """
+    
+    """
+    Процедура получения конфигурации на устройстве представляет собой бесконечный цикл, выход из которого достигается только при (или):
+        - [Ожидаемый, успешный] Получение "prompt" в CLI (приглашение к вводу команды говорит о том, что конфигурация полностью выведена на экран)
+        - [Исключение, ошибка] Превышение порога вывода конфигурации (в секундах)
+    Логика цикла предусматривает следующий порядок итеративных (повторяющихся) действий.
+    I. Первый блок - попытка считать информацию из channel и записать ее в переменную block
+        Устанавливается задержка в 0.01 милисекунды
+        Проверяется наличие полезной информации в channel
+        Если информации нет - то переходим к следующей итерации ожидания с задержкой 0.1 секунды
+        Если из channel есть возможность считать информацию (recv_ready), то информация считывается, помещается в block. После задержка устанавливается равной 1 секунде и цикл уходит в следующую итерацию.
+            В следующей итерации цикла пробуем дополучить информацию, если она не поместилась в предыдущий блок или устройство выдает информацию порционно.
+    II. Второй блок - разбираем блок полученный в channel
+        Очищаем блок от ненужных данных, которые устройство генерирует например при отправке пробела (специфично для устройства)
+        Переводим block из bytes -> UTF8 и разделяем на строки (/n)
+    """
+    
+    """
+    Параметры цикла
+    """
+    # Флаг успешного выхода из цикла считывания конфигурации. Устанавливается в True если в процессе считывания конфигурации в выводе получено значение prompt-line.
+    flag_success = False
+    # Счетчик времени, в ходе которого цикл непрерывно ожидает от устройства ответ, но не получает его (в секундах).
+    block_timer = 0
+    # Счетчик количества "захваченных" (captured) блоков в процессе получения конфигурации
+    block_count = 0
+    # Форматированный результат считывания конфигурации с устройства
+    output = ""
+    
+    if cset.get('timer'):
+      block_timer_limit = cset['timer']
+    else:
+    # by default 20 sec
+      block_timer_limit = 20
+    
+    chan.send('%s\n' % cset['get_congig'])
+    
+    while not flag_success:
+      flag_block = False
+      block = bytes()
+      sleep = 0.1
+      while not flag_block:
+        #time.sleep(0.1)
+        ### print('. %s' % sleep)
+        time.sleep(sleep)
+        #block_timer += 1
+        if chan.recv_ready():
+          new = chan.recv(1024)
+          if len(new) > 0:
+            flag_block = False
+            block += new
+            sleep = 1
+          else:
+            flag_block = True
+        else:
+          flag_block = True
+      
+      if len(block) > 0:
+        block_timer = 0
+        block_count += 1
+        
+        line_debug = ("----- Start Block: %d --------------------" % block_count)
+        output_debug += (line_debug + '\n')
+        #print(line_debug)
+        
+        line_debug = "--------------"
+        output_debug += (line_debug + '\n')
+        #print(line_debug)
+        line_debug = "Captured block"
+        output_debug += (line_debug + '\n')
+        #print(line_debug)
+        line_debug = "--------------"
+        output_debug += (line_debug + '\n')
+        #print(line_debug)
+        line_debug = block.decode("utf-8")
+        output_debug += (line_debug + '\n')
+        #print(line_debug)
+        
+        # Cisco IOS MORE (ESC) backspaces
+        block = re.sub(b"\x08.*\x08", b'', block)
+        # Eltex MORE (ESC) backspaces
+        block = re.sub(b"\x1b\r(\s)+\r\x1b\[K", b'', block)
+        # Cisco Nexus MORE (ESC) backspaces
+        block = re.sub(b"\x1b\[K", b'', block)
+        
+        block = re.sub(b"\r *\r", b'', block)
+        block = re.sub(b"\r", b'', block)
+        
+        line_debug = "--------------"
+        output_debug += (line_debug + '\n')
+        #print(line_debug)
+        line_debug = "Trimmed block"
+        output_debug += (line_debug + '\n')
+        #print(line_debug)
+        line_debug = "-------------"
+        output_debug += (line_debug + '\n')
+        #print(line_debug)
+        line_debug = block.decode("utf-8")
+        output_debug += (line_debug + '\n')
+        #print(line_debug)
+        
+        # \n - newline character
+        block = block.decode("utf-8",'ignore').split("\n")
+        
+        line_debug = "Parsed block (%d lines)" % len(block)
+        output_debug += (line_debug + '\n')
+        #print(line_debug)
+        line_debug = "------------"
+        output_debug += (line_debug + '\n')
+        #print(line_debug)
+
+        i = 0
+        s_1 = 0
+        s_2 = 0
+        s_3 = 0
+        for line in block:
+          i += 1
+          if not line: s_1 += 1
+          if line == '\r': s_2 += 1
+          if line and line != '\r' and i < len(block):
+            output += (line + '\n')
+            s_3 += 1
+          line_debug = '%d) [%d] %s' % (i, len(line), line)
+          output_debug += (line_debug + '\n')
+          #print(line_debug)
+          
+        line_debug = " Empty lines: %d" % s_1
+        output_debug += (line_debug + '\n')
+        #print(line_debug)
+        line_debug = " Spaces: %d" % s_2
+        output_debug += (line_debug + '\n')
+        #print(line_debug)
+        line_debug = " Total/Useful Lines: %d/%d" % (i, s_3)
+        output_debug += (line_debug + '\n')
+        #print(line_debug)
+
+        if prompt.search(line) != None:
+          flag_success = True
+        # Send space only if prompt present (Get More, Continue, etc)
+        elif (line and len(block)>1):
+        #else:
+          line_debug = 'sending space... [%s]' % line
+          output_debug += (line_debug + '\n')
+          #print(line_debug)
+          # Emulate [space] button press
+          if cset.get('get_more'):
+            chan.send('%s' % cset['get_more'])
+          else:
+          # [space] by default
+            chan.send(' ')
+
+        line_debug = "----- End Block: %d --------------------" % block_count
+        output_debug += (line_debug + '\n')
+        #print(line_debug)
+        output_debug += ('\n\n')
+        #print(line_debug)
+      else:
+        block_timer += 1
+      
+      #print('Time ellapsed: %d' % block_timer)
+      if block_timer > block_timer_limit/0.1:
+        raise ValueError("Block Timeout reached: %d seconds" % block_timer_limit)
+    
   except paramiko.AuthenticationException:
     result.msg = "Authentication failed, verify credentials used for connection"
     return result
@@ -934,7 +1147,8 @@ def net_backup_ssh_cset(name, ip, username, password, path, cset, port=22, enabl
   
   try:
     f = open(filename, 'w')
-    f.write(output.decode("utf-8"))
+    #f.write(output.decode("utf-8"))
+    f.write(output)
   except OSError as e:
     if e.errno == errno.ENOSPC:
       result.msg = "Can't create backup file. No disk space left"
@@ -950,12 +1164,21 @@ def net_backup_ssh_cset(name, ip, username, password, path, cset, port=22, enabl
     #return ("%s: %s" % (name, e))
   finally:
     f.close()
-    
+  
   try:
     f_size = os.path.getsize(filename)
     result.size = f_size
   except OSError as e:
     result.msg = "Error while checking backup file size: %s" % e
+  
+  # Создаем debug-файл и записываем дамп работы функции в него (если в функцию передан соотв. параметр)
+  if debug:
+    debug_filename = "%s/%s--%s.debug" % (path, name, timestamp)
+    try:
+      f = open(debug_filename, 'w')
+      f.write(output_debug)
+    finally:
+      f.close()
 
   # If function finished with no exception, set OK flag to True
   result.ok = True
@@ -963,7 +1186,7 @@ def net_backup_ssh_cset(name, ip, username, password, path, cset, port=22, enabl
 
 
 
-def net_backup_ssh(name, ip, username, password, path, enable=None, port=22, ostype=None):
+def net_backup_ssh(name, ip, username, password, path, enable=None, port=22, ostype=None, debug=False):
   """
     Adopted for backup plain-text configuration on ssh-cli network devices. Supports:
     - Cisco IOS
@@ -971,15 +1194,17 @@ def net_backup_ssh(name, ip, username, password, path, enable=None, port=22, ost
     - Cisco ASDM (ASA)
     - VyOS (Vyatta OS)
     - Gaia (Checkpoint Gaia OS)
+    - Eltex MES
     :ostype defines OS type of device:
         ios (default)
         nx-os
         asa
         vyos
         gaia
+        eltex
   """
   
-  result = net_backup_ssh_cset(name, ip, username, password, path, cset[ostype], port, enable)
+  result = net_backup_ssh_cset(name, ip, username, password, path, cset[ostype], port, enable, debug)
   return result  
 
 

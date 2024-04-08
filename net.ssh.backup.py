@@ -1,5 +1,5 @@
 #!/usr/bin/python3
-# Copyright 2023 Sergey Malkov
+# Copyright 2024 Sergey Malkov
 
 """
 Use this section to describe script functionalty
@@ -25,8 +25,9 @@ Define mandatory and optional arguments using argparse module functions
 """
 parser = argparse.ArgumentParser(description='Creates backup via ssh for selected list of network devices. Supports: Cisco (IOS, NX-OS, ASA ASDM platforms), VyattaOS (VyOS).')
 parser.add_argument('--settings', '-s', help="Name of text file where settings is defined", type=str, required=True)
-parser.add_argument('--display', '-d', help="Turns on log output in console. Default: False", action='store_true')
+parser.add_argument('--verbose', '-v', help="Turns on log output in console. Default: False", action='store_true')
 parser.add_argument('--credentials', '-c', help="Enables input authZ credentials for any integration. Default: False", action='store_true')
+parser.add_argument('--debug', '-d', help="Creates debug file for every device in backup job. Recommended only for development purposes. Default: False", action='store_true')
 args = parser.parse_args()
 
 
@@ -128,7 +129,7 @@ def main_init():
   #
   log.set_lvl_prefix()
   # Turn on console display mode
-  if args.display:
+  if args.verbose:
     log.display.on()
     log.display.prefix()
     # Define color templates for binded log display output
@@ -268,7 +269,7 @@ def main_preprocessing():
     log.write("[WARN] Can't calculate free space in backup directory: %s" % fs.error, lvl=1)
   
   # Console print description of settings file (only with --display arg)
-  if args.display and params['description']:
+  if args.verbose and params['description']:
     print(params['description'])
   
   if args.credentials:
@@ -299,7 +300,7 @@ def main_preprocessing():
         if len(params['zabbix_password'])==0:
           print(' Password cannot be empty')
       log.write('zabbix_username: %s' % params['zabbix_username'], lvl=1)
-    if args.display:
+    if args.verbose:
       log.display.on()
   
   log.write('Parse script setting')
@@ -444,7 +445,7 @@ def main_preprocessing():
       continue    # Jump to next device
     
     devices.append(dict(name=name, ip=device['ip'], username=device['username'], password=device['password'], path=device['path'], port=device['port'], enable=device['enable'], os=device['os']))
-    log.write('[ADD] %s [%s]' % (name, device['ip']), lvl=1)
+    log.write('[ADD] %s [IP: %s | TYPE: %s]' % (name, device['ip'], device['os']), lvl=1)
   
   if len(devices) == 0:
     log.write('[INFO] Devices is not presented or defined attributes is invalid', lvl=1)
@@ -474,11 +475,12 @@ def ssh_backup_flow(attr):
     result = '[DONE] %s: configuration backup successfully done' % attr['name']
     return True, result
   """
-  result = cf.net_backup_ssh(attr['name'], attr['ip'], attr['username'], attr['password'], attr['path'], attr['enable'], attr['port'], attr['os'])
+  result = cf.net_backup_ssh(attr['name'], attr['ip'], attr['username'], attr['password'], attr['path'], attr['enable'], attr['port'], attr['os'], args.debug)
   if result.ok:
-    if result.size < 512:
+    # One page output ~ 600-700 B
+    if result.size < 1024:
       result.ok = False
-      msg = '[FAIL] %s: Backup file size is less then 512 Bytes' % attr['name']
+      msg = '[FAIL] %s: Backup file size is less then 1 KB' % attr['name']
     elif result.msg:
       msg = '[DONE] %s: %s' % (attr['name'], result.msg)
     else:

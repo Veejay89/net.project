@@ -1,8 +1,26 @@
-## [1.0.3] - Planned
+## [1.0.4] - Planned
 
 ### script net.ssh.backup.py
-- backup Eltex MES device option
+- Huawei switch backup option
 - (Restricted) marker for Cisco IOS-devices
+- Zabbix and device info mapping in upper/lower case
+- MD5 Hash checkup for backup files
+- Single device's Backup File size in lines added as info in Backup Job log output
+
+
+## [1.0.3] - Ready
+
+### script net.ssh.backup.py
+- Eltex MES devices backup option
+- Cisco WLC backup option
+- Backup file size threshold increased 512B -> 1KB (if backup size <1KB, fail alert will be generated)
+- Device type info added in Backup Job log output
+
+### module cf.py
+- function "net_backup_ssh_cset" added page support while reading config (w/o pager)
+
+### module cfzbx.py
+- function "get_net_in_groups" added Eltex MES devices inventory support
 
 
 ## [1.0.2]

@@ -39,7 +39,8 @@ class Zabbix:
       "jsonrpc": "2.0",
       "method": "user.login",
       "params": {
-        "user": user,
+        #"user": user, # Zabbix version < 6.5.10
+        "username": user, # Zabbix version >= 6.5.10
         "password": password
       },
      "id": 1
@@ -151,7 +152,9 @@ class Zabbix:
     templateSoftware = [
       re.compile(r'(?:.*Cisco )(?P<software>IOS|NX-OS)(?:.*Version )(?P<version>[0-9\.\(\)]{2,})(?:.*)'),
       re.compile(r'(?:.*Cisco )(?P<software>Adaptive Security Appliance|Firepower Threat Defense)(?:.*Version )(?P<version>[0-9\.\(\)]{2,})(?:.*)'),
-      re.compile(r'(?P<software>VyOS|vyos) (?P<version>[0-9\.\(\)]{2,})(?:.*)')
+      re.compile(r'(?P<software>VyOS|vyos) (?P<version>[0-9\.\(\)]{2,})(?:.*)'),
+      # 02.08.23 Add Eltex Support from Zabbix Field
+      re.compile(r'(?P<software>Eltex MES) (?P<version>[0-9\.\(\)]{2,})(?:.*)')
     ]
     
     hosts = dict()
