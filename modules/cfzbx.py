@@ -153,8 +153,13 @@ class Zabbix:
       re.compile(r'(?:.*Cisco )(?P<software>IOS|NX-OS)(?:.*Version )(?P<version>[0-9\.\(\)]{2,})(?:.*)'),
       re.compile(r'(?:.*Cisco )(?P<software>Adaptive Security Appliance|Firepower Threat Defense)(?:.*Version )(?P<version>[0-9\.\(\)]{2,})(?:.*)'),
       re.compile(r'(?P<software>VyOS|vyos) (?P<version>[0-9\.\(\)]{2,})(?:.*)'),
-      # 02.08.23 Add Eltex Support from Zabbix Field
-      re.compile(r'(?P<software>Eltex MES) (?P<version>[0-9\.\(\)]{2,})(?:.*)')
+      # 02.08.23 Add Eltex support from Zabbix Field
+      # 10.04.24 Add workaround, when Eltex Device returns OS as "Eltex MES NULL" instead of "Eltex MES 10.3.3.1"
+      re.compile(r'(?P<software>Eltex MES) (?P<version>([0-9\.\(\)]{2,})|(NULL))(?:.*)'),
+      # 10.04.24 Add GaiaOS support from Zabbix Field
+      re.compile(r'(?P<software>Gaia|GaiaOS|gaiaos)(?P<version>.*)'),
+      # 12.04.24 Add Cisco WLC support from Zabbix Field
+      re.compile(r'(?P<software>WLC|wlc)(?P<version>.*)')
     ]
     
     hosts = dict()

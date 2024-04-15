@@ -484,7 +484,7 @@ def ssh_backup_flow(attr):
     elif result.msg:
       msg = '[DONE] %s: %s' % (attr['name'], result.msg)
     else:
-      msg = '[DONE] %s: conf backup successfully done. Size: %s Bytes' % (attr['name'], cf.convert_bytes(result.size))
+      msg = '[DONE] %s: conf backup successfully done. Size: %s / %s lines' % (attr['name'], cf.convert_bytes(result.size), result.lines)
   else:
     msg = '[FAIL] %s: %s' % (attr['name'], result.msg)
   

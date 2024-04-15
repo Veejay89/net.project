@@ -44,6 +44,8 @@ net_supported_software = {
     'adaptive security appliance': 'asa',
     'vyos': 'vyos',
     'gaia': 'gaia',
+    # 10.04.24 Add alias GaiaOS
+    'gaiaos': 'gaia',
     # 06.03.23 Add Cisco WLC support
     'wlc': 'wlc',
     # 28.03.23 Add Eltex MES support
@@ -879,6 +881,7 @@ def net_backup_ssh_cset(name, ip, username, password, path, cset, port=22, enabl
   result = _pseudo()
   result.ok = False # True - backup successfully done, False - error occured
   result.size = 0   # Backup file size in Bytes
+  result.lines = 0  # Backup file size in Lines
   result.msg = ''   # Text result, i.e. error
   
   # cset contains command set for device, prompt template and get config command is necessary parameters
@@ -895,7 +898,8 @@ def net_backup_ssh_cset(name, ip, username, password, path, cset, port=22, enabl
     ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
     ssh.connect(ip, port, username, password, look_for_keys=False, timeout=ssh_tcp_timeout, auth_timeout=ssh_auth_timeout)
     chan = ssh.invoke_shell()
-    time.sleep(2)
+    # 10.04.24 sleep time increased from 2 -> 5 sec. Mitigation of time-lag after authZ on device
+    time.sleep(5)
     
     # Get first console greetings (for prompt calculation)
     output = chan.recv(999999)
@@ -932,7 +936,10 @@ def net_backup_ssh_cset(name, ip, username, password, path, cset, port=22, enabl
     else:
       # If 'mode' can't be parsed, exception will be executed later: 
       # local variable 'mode' referenced before assignment
-      result.msg = "Cannot parse device prompt with predefined regexp: %s" % output
+      if (not output):
+        result.msg = "Device prompt not presented. Check how long device responce after authz credential accepted"
+      else:
+        result.msg = "Cannot parse device prompt with predefined regexp: %s" % output
       return result
     
     # If cset contains "pager"-command, try to execute on device to decrease config dump iterations
@@ -1076,7 +1083,10 @@ def net_backup_ssh_cset(name, ip, username, password, path, cset, port=22, enabl
           line_debug = '%d) [%d] %s' % (i, len(line), line)
           output_debug += (line_debug + '\n')
           #print(line_debug)
-          
+        
+        # Increase text config lines counter
+        result.lines += s_3
+        
         line_debug = " Empty lines: %d" % s_1
         output_debug += (line_debug + '\n')
         #print(line_debug)

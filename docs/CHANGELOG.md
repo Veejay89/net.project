@@ -1,11 +1,17 @@
-## [1.0.4] - Planned
+## [1.0.5] - Planning
 
 ### script net.ssh.backup.py
-- Huawei switch backup option
+- New argument (?) added to show avaliable backup jobs
+- Cisco ISE backup option added
+
+
+## [1.0.4] - Planning
+
+### script net.ssh.backup.py
+- Huawei switch backup option added
 - (Restricted) marker for Cisco IOS-devices
 - Zabbix and device info mapping in upper/lower case
 - MD5 Hash checkup for backup files
-- Single device's Backup File size in lines added as info in Backup Job log output
 
 
 ## [1.0.3] - Ready
@@ -15,9 +21,12 @@
 - Cisco WLC backup option
 - Backup file size threshold increased 512B -> 1KB (if backup size <1KB, fail alert will be generated)
 - Device type info added in Backup Job log output
+- Single device's Backup File size in lines added as info in Backup Job log output
+- Add GaiaOS type support for Zabbix Integration (inventarization, os.fullname field)
 
 ### module cf.py
 - function "net_backup_ssh_cset" added page support while reading config (w/o pager)
+- function "net_backup_ssh_cset" increased sleep timer 2 > 5 sec after authz (to get device prompt)
 
 ### module cfzbx.py
 - function "get_net_in_groups" added Eltex MES devices inventory support
@@ -42,5 +51,4 @@
 
 ## [1.0.0]
 
-### Changed
-- initial release
+Initial release
